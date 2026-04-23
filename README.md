@@ -1,41 +1,107 @@
 # AI Editorial Suite
-Domain-specific LLM workflows for scientific publishing and editorial QA.
-This repository contains domain-specific LLM workflows designed to support scientific editorial processes, including manuscript pre-review, quality checks, journal selection, and formal correspondence.
 
-The project focuses on **workflow design and decision logic**, not on raw model training.
+Concept and ongoing development of an AI-driven system for **scientific journal editorial workflows**.
 
-## Included tools
-- **Stage 1 – Pre-review screening**  
-  Scope fit, structure (IMRAD), citation sanity checks, editorial red flags.
+The project focuses on automating key stages of manuscript handling using modular AI components.
 
-- **Stage 2 – Deep editorial support**  
-  Language refinement, structural consistency, clarity improvements.
+---
 
-- **Stage 3 – Format and compliance checks**  
-  Journal requirements, references, figure/table consistency.
+## Overview
 
-- **JournalFinder**  
-  Journal matching based on discipline, scope, and formal criteria.
+AI Editorial Suite is designed as a **multi-module system** supporting editorial decision-making, content quality, and submission routing.
 
-- **SciMailTranslator**  
-  Formal scientific correspondence translation.
+The system is based on a **config-driven architecture**, allowing adaptation to different journals.
 
-```md
-/prompts        – Selected system instructions used in workflows  
-/examples       – Anonymized input/output examples  
-/architecture   – High-level workflow descriptions (optional)
-```
-## What this repository is
-- A **portfolio of applied LLM workflows**
-- A demonstration of **editorial QA logic**
-- A practical case study from scientific publishing
+---
 
-## What this repository is not
-- A production-ready system
-- A replacement for human editorial judgment
-- A generic prompt collection
+## Modules
 
-## Disclaimer
-This repository presents experimental AI workflows.
-It does not replace editorial, legal, or ethical responsibility.
-All examples are anonymized and provided for demonstration purposes only.
+### 1. Pre-Desk Review Engine (Stage 1)
+Automated initial screening of manuscripts before peer review.
+
+Scope:
+- technical compliance checks
+- scope alignment
+- reproducibility assessment
+- results vs. conclusions consistency
+- statistical adequacy
+- similarity analysis (iThenticate-aware)
+
+Output:
+- structured pre-review report
+- editorial recommendation:
+  - `accept`
+  - `revisions`
+  - `reject`
+
+---
+
+### 2. Language Correction Module (Stage 2)
+AI-assisted improvement of manuscript language quality.
+
+Scope:
+- grammar and style correction
+- academic tone adjustment
+- clarity and readability improvement
+
+---
+
+### 3. Reviewer Recommendation Engine (RAG)
+AI-based system for suggesting suitable peer reviewers.
+
+Approach:
+- semantic search (embeddings)
+- similarity to manuscript topic
+- filtering by expertise
+
+---
+
+### 4. Journal Finder Module
+Tool for matching manuscripts to appropriate journals.
+
+Scope:
+- topic matching
+- scope alignment
+- potential submission recommendations
+
+---
+
+## Current Focus
+
+Active development is currently focused on:
+
+→ **Stage 1 – Pre-Desk Review Engine**
+
+Other modules are planned and will be developed incrementally.
+
+---
+
+## Architecture (Concept)
+
+- modular design
+- separation of:
+  - configuration (JSON)
+  - decision logic
+  - LLM-based extraction
+- scalable to multiple journals
+
+---
+
+## Status
+
+- architecture defined
+- repository structure prepared
+- Stage 1 logic designed
+- implementation in progress
+
+---
+
+## Note
+
+This repository does not contain real manuscript data or confidential editorial materials.
+
+---
+
+## Author
+
+Mateusz Borkowski
