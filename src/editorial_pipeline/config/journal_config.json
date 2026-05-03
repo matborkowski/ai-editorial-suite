@@ -1,0 +1,8 @@
+﻿{
+  "journal_name": "Example Journal of Science",
+  "scope_keywords": ["machine learning", "neural networks", "AI"],
+  "min_abstract_words": 150,
+  "max_abstract_words": 300,
+  "required_sections": ["introduction", "methods", "results", "conclusion"],
+  "language": "english"
+}
