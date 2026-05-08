@@ -1,226 +1,171 @@
 # AI Editorial Suite
 
-> An AI-powered editorial workflow system for academic journals — built with Python and LLMs.
+AI Editorial Suite is a Python project for academic publishing workflows with two CLI products:
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue)
-![LLM](https://img.shields.io/badge/LLM-powered-teal)
-![Products](https://img.shields.io/badge/products-2-orange)
-![Status](https://img.shields.io/badge/status-in%20development-yellow)
+- `Editorial Pipeline` for editors (manuscript triage and reviewer support)
+- `Journal Finder` for authors (Stage 1 filtering + Stage 2 ranking)
 
----
+The codebase is functional but still in active development.
 
-## What Changed in v2.0
+## Current Product Scope
 
-The original plan treated four modules as equal, independent components — without defining who uses them or in what order. After a domain review, it became clear the project consists of **two separate products for two different users**.
+### 1) Editorial Pipeline (editor-facing)
 
-| ❌ Old Plan | ✅ New Plan |
-|---|---|
-| 4 modules with no defined sequence | 2 products with clear step sequences |
-| No defined actor (who uses this?) | Editor → Pipeline / Author → Journal Finder |
-| Journal Finder mixed into the editorial pipeline | Journal Finder as a separate standalone CLI tool |
-| No conditional logic between steps | Decision logic: `reject` / `revisions` / `accept` |
+Input: manuscript `.docx`  
+Output: JSON report and optional corrected manuscript text
 
----
+Implemented flow:
 
-## Product 1: Editorial Pipeline
+1. `IngestionStep` parses manuscript content.
+2. `PreDeskReviewStep` runs LLM pre-desk evaluation.
+3. `ReviewerRecommendationStep` runs semantic retrieval of reviewers (skipped on reject).
+4. `LanguageCorrectionStep` runs only for revisions.
+5. `PersistStep` writes outputs.
 
-**User:** Journal editor  
-**Input:** Full manuscript (`.docx`)  
-**Output:** Editorial report with recommendation, reviewer list, and language corrections
+Entrypoint: `main_editorial.py`
 
-### Pipeline Steps
+### 2) Journal Finder (author-facing)
 
-```
-Manuscript (.docx)
-       │
-       ▼
-┌─────────────────┐
-│  Step 1         │  Ingestion
-│  docx_parser    │  → extracts title, abstract, keywords, sections, full text
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Step 2         │  Pre-Desk Review
-│  LLM + Pydantic │  → scope check, statistics, similarity, compliance
-└────────┬────────┘
-         │
-    ┌────┴─────────────────┐
-    │                      │
-  reject                revisions / accept
-    │                      │
-    ▼                      ▼
-Stop + report     ┌─────────────────┐
-                  │  Step 3         │  Reviewer Recommendation
-                  │  RAG + Chroma   │  → embeddings, conflict filter, top-N
-                  └────────┬────────┘
-                           │
-                    ┌──────┴──────────────┐
-                    │                     │
-                 revisions             accept
-                    │                     │
-                    ▼                     ▼
-          ┌─────────────────┐      Skip this step
-          │  Step 4         │  Language Correction
-          │  LLM            │  → grammar, academic tone, clarity
-          └────────┬────────┘
-                   │
-                   ▼
-          ┌─────────────────┐
-          │  Step 5         │  Persist
-          │  JSON / PDF     │  → final report saved to outputs/
-          └─────────────────┘
-```
+Input: ministry journal list + article metadata  
+Output: Stage 1 filtered journals and Stage 2 ranked journal recommendations (DOCX)
 
-### Step Details
+Implemented modes in one CLI:
 
-**Step 1 — Ingestion**  
-Parses the `.docx` file and extracts: title, abstract, keywords, sections, full text.  
-Returns a `ManuscriptData` Pydantic model.
+- `stage1` - discipline + points filtering from XLSX, exports one or more DOCX files
+- `stage2` - reads Stage 1 DOCX files, enriches metadata/web profiles, scores fit, exports DOCX report
+- `pipeline` - executes Stage 1 -> Stage 2 in one command
 
-**Step 2 — Pre-Desk Review**  
-LLM evaluates journal scope compliance, topic fit, statistical quality, and similarity to existing work.  
-Returns a `ReviewResult` with `recommendation: "accept" | "revisions" | "reject"`.  
-If `reject` → pipeline stops here and generates a rejection report.
+Entrypoint: `main_journal_finder.py`
 
-**Step 3 — Reviewer Recommendation** *(skipped on `reject`)*  
-RAG pipeline compares manuscript embeddings against a reviewer profile database.  
-Applies filters: conflicts of interest, availability, prior reviews.  
-Returns top-N reviewers with justification.
+## Repository Structure
 
-**Step 4 — Language Correction** *(only on `revisions`)*  
-LLM corrects grammar, academic tone, and clarity.  
-Returns corrected text with annotated changes.
-
-**Step 5 — Persist**  
-Saves the final report to JSON (and optionally PDF).  
-Report includes: recommendation, reviewer list, corrected text, error log.
-
----
-
-## Product 2: Journal Finder
-
-**User:** Academic author  
-**Input:** Abstract or short description *(full manuscript not required)*  
-**Output:** Ranked list of suitable journals with match justification
-
-### Why a Separate Product?
-
-Journal Finder operates at a different point in time — the author looks for a journal *before* submitting, while the editor receives the manuscript *after* that decision. These are fundamentally different tools:
-
-| | Editorial Pipeline | Journal Finder |
-|---|---|---|
-| User | Journal editor | Academic author |
-| Trigger | Manuscript received | Before submission |
-| Input | Full `.docx` manuscript | Abstract only |
-| Output | Editorial report | Journal ranking |
-| Database | Reviewer profiles | Journal profiles |
-
----
-
-## Project Structure
-
-```
+```text
 ai-editorial-suite/
+├── main_editorial.py
+├── main_journal_finder.py
+├── requirements.txt
 ├── src/
-│   ├── ingestion/                  # shared parser — used by both products
+│   ├── ingestion/
 │   │   └── docx_parser.py
-│   ├── editorial_pipeline/         # Product 1: user = editor
-│   │   ├── pipeline.py             # PipelineRunner + PipelineContext
-│   │   ├── models.py               # ManuscriptData, ReviewResult (Pydantic)
+│   ├── editorial_pipeline/
 │   │   ├── config/
-│   │   │   └── journal_config.json # per-journal configuration
-│   │   └── steps/
-│   │       ├── ingestion.py
-│   │       ├── pre_desk_review.py
-│   │       ├── reviewer_recommendation.py
-│   │       ├── language_correction.py
-│   │       └── persist.py
-│   └── journal_finder/             # Product 2: user = author
+│   │   │   └── journal_config.json
+│   │   ├── rag/
+│   │   │   └── reviewer_store.py
+│   │   ├── steps/
+│   │   │   ├── ingestion.py
+│   │   │   ├── pre_desk_review.py
+│   │   │   ├── reviewer_recommendation.py
+│   │   │   ├── language_correction.py
+│   │   │   └── persist.py
+│   │   ├── models.py
+│   │   └── pipeline.py
+│   └── journal_finder/
+│       ├── stage1_filter.py
+│       ├── stage2.py
+│       ├── stage2_requirements.txt
+│       ├── journal_finder_stage2_metadata_template.csv
 │       ├── finder.py
 │       └── models.py
-├── main_editorial.py               # CLI entrypoint for editors
-├── main_journal_finder.py          # CLI entrypoint for authors
+├── data/
 ├── samples/
 ├── outputs/
-├── tests/
-│   ├── test_ingestion.py
-│   ├── test_review.py
-│   └── test_journal_finder.py
-└── requirements.txt
+└── tests/
 ```
 
----
+## Installation
 
-## Requirements
-
-```txt
-# Parsing
-python-docx>=1.1.0
-
-# LLM
-openai>=1.30.0
-anthropic>=0.25.0
-
-# Structured outputs
-pydantic>=2.7.0
-
-# RAG / Embeddings
-chromadb>=0.5.0
-sentence-transformers>=3.0.0
-
-# Utilities
-python-dotenv>=1.0.0
-loguru>=0.7.0
-
-# Testing
-pytest>=8.0.0
-pytest-asyncio>=0.23.0
-```
-
----
-
-## Quick Start
+Use Python 3.11+.
 
 ```bash
-# Clone the repo
-git clone https://github.com/matborkowski/ai-editorial-suite
-cd ai-editorial-suite
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Run the editorial pipeline
-python main_editorial.py --path samples/test_article_1.docx
-
-# Run the journal finder
-python main_journal_finder.py --abstract "your abstract text here"
+pip install -r src/journal_finder/stage2_requirements.txt
 ```
 
----
+Notes:
 
-## Implementation Roadmap
+- `requirements.txt` covers core editorial pipeline stack.
+- `stage2_requirements.txt` adds Stage 2 dependencies (`requests`, `beautifulsoup4`, `scikit-learn`, `python-docx`).
 
-| Stage | Description | Status |
-|---|---|---|
-| 1 | Ingestion + Pydantic models (`ManuscriptData`, `ReviewResult`) | 🔄 In progress |
-| 2 | Pre-Desk Review with real LLM + structured output | ⏳ Planned |
-| 3 | Pipeline runner with conditional logic (reject/revisions/accept) | ⏳ Planned |
-| 4 | Reviewer Recommendation — RAG + Chroma + embeddings | ⏳ Planned |
-| 5 | Language Correction step | ⏳ Planned |
-| 6 | Journal Finder as standalone CLI | ⏳ Planned |
-| 7 | Unit tests for each pipeline step | ⏳ Planned |
+## Configuration
 
----
+Set API key for editorial LLM steps:
 
-## Architecture Principles
+```bash
+# Windows PowerShell
+$env:OPENAI_API_KEY = "your_key_here"
+```
 
-- **Domain-driven design** — structure reflects the real editorial workflow, not just a list of features
-- **Pipeline pattern** — each step is an independent `PipelineStep` class, testable in isolation
-- **Conditional execution** — steps run only when appropriate (`should_run()` per step)
-- **Pydantic everywhere** — all data passed between steps is validated and typed
-- **Config-driven** — journal-specific rules live in `journal_config.json`, not in code
+Editorial config file:
 
----
+- `src/editorial_pipeline/config/journal_config.json`
 
-*AI Editorial Suite — v2.0 — Architecture updated after domain review*
+## Usage
+
+### Editorial Pipeline
+
+```bash
+python main_editorial.py --path "samples/test_article_1.docx"
+```
+
+### Journal Finder - Stage 1
+
+```bash
+python main_journal_finder.py stage1 ^
+  --file "Wykaz czasopism naukowych 2024.xlsx" ^
+  --disciplines "nauki chemiczne; inżynieria chemiczna" ^
+  --min-points 70 ^
+  --max-points 140 ^
+  --output-dir "outputs"
+```
+
+### Journal Finder - Stage 2
+
+```bash
+python main_journal_finder.py stage2 ^
+  --stage1-docx "outputs/JournalFinder_stage1_results.docx" ^
+  --article-title "Example manuscript title" ^
+  --abstract-file "samples/abstract.txt" ^
+  --keywords "electrochemistry; catalysis; membrane" ^
+  --metadata-csv "src/journal_finder/journal_finder_stage2_metadata_template.csv" ^
+  --output-dir "outputs"
+```
+
+### Journal Finder - Full Pipeline
+
+```bash
+python main_journal_finder.py pipeline ^
+  --file "Wykaz czasopism naukowych 2024.xlsx" ^
+  --disciplines "nauki chemiczne; inżynieria chemiczna" ^
+  --min-points 70 ^
+  --max-points 140 ^
+  --article-title "Example manuscript title" ^
+  --abstract-file "samples/abstract.txt" ^
+  --keywords "electrochemistry; catalysis; membrane" ^
+  --metadata-csv "src/journal_finder/journal_finder_stage2_metadata_template.csv" ^
+  --stage1-output-dir "outputs" ^
+  --stage2-output-dir "outputs"
+```
+
+To allow Stage 2 web enrichment, add:
+
+- `--enable-web`
+- optional: `--use-openalex-discovery`
+
+## Current Limitations
+
+- `src/journal_finder/finder.py` remains a legacy placeholder and is not the main path.
+- Test coverage is still partial; some tests are placeholders.
+- Reliability and observability are basic (no full retry/metrics framework yet).
+
+## Roadmap (Next Priorities)
+
+1. Increase automated test coverage for Stage 1/Stage 2 and pipeline integration.
+2. Consolidate dependency management (single source of truth for requirements).
+3. Harden LLM/network reliability (timeouts, retries, structured error taxonomy).
+4. Improve data contracts and validation between steps.
+5. Add CI checks (tests, linting, type checks).
+
+## License
+
+No license file is currently included in this repository.
