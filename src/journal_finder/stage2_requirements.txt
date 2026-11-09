@@ -1,4 +1,0 @@
-python-docx
-requests
-beautifulsoup4
-scikit-learn

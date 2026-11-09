@@ -1,6 +1,29 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
 venv/
+env/
+*.egg-info/
+build/
+dist/
+
+# Credentials and local settings
 .env
-samples/*.docx
-samples/*.pdf
+.env.*
+!.env.example
+
+# Manuscripts, generated files, vector databases
+samples/
+outputs/
+data/chroma_db/
+*.log
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

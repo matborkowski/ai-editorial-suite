@@ -1,171 +1,102 @@
 # AI Editorial Suite
 
-AI Editorial Suite is a Python project for academic publishing workflows with two CLI products:
+**AI Editorial Suite** is an experimental Python toolkit for supporting editorial workflows in scholarly journals. Its current focus is the **Editorial Pipeline**: manuscript intake, preliminary editorial screening, reviewer suggestions and language correction.
 
-- `Editorial Pipeline` for editors (manuscript triage and reviewer support)
-- `Journal Finder` for authors (Stage 1 filtering + Stage 2 ranking)
+**Status:** Prototype / under development. The software is not production-ready, and its AI outputs require independent editorial verification.
 
-The codebase is functional but still in active development.
+> **Looking for the Polish ministry journal search tool?** It is now developed independently in [Polish Journal Finder](https://github.com/matborkowski/polish-journal-finder). The legacy Journal Finder implementation has been removed from this repository.
 
-## Current Product Scope
+## Current workflow
 
-### 1) Editorial Pipeline (editor-facing)
+The command-line entry point is `main_editorial.py`.
 
-Input: manuscript `.docx`  
-Output: JSON report and optional corrected manuscript text
+| Step | Module | Function |
+| --- | --- | --- |
+| 1 | Manuscript ingestion | Extracts text and basic structure from DOCX manuscripts |
+| 2 | Pre-desk review | Requests an LLM-based preliminary assessment of scope and editorial issues |
+| 3 | Reviewer recommendation | Uses embeddings and a local Chroma database to find potentially relevant reviewers |
+| 4 | Language correction | Applies conservative English-language corrections when revisions are recommended |
+| 5 | Report generation | Saves a JSON report and, where applicable, corrected text in TXT format |
 
-Implemented flow:
+The modules are implemented, but end-to-end reliability and automated test coverage are limited. Recommendations must not be used as autonomous editorial decisions. Reviewer matches require checks for expertise, identity, conflicts of interest and availability.
 
-1. `IngestionStep` parses manuscript content.
-2. `PreDeskReviewStep` runs LLM pre-desk evaluation.
-3. `ReviewerRecommendationStep` runs semantic retrieval of reviewers (skipped on reject).
-4. `LanguageCorrectionStep` runs only for revisions.
-5. `PersistStep` writes outputs.
-
-Entrypoint: `main_editorial.py`
-
-### 2) Journal Finder (author-facing)
-
-Input: ministry journal list + article metadata  
-Output: Stage 1 filtered journals and Stage 2 ranked journal recommendations (DOCX)
-
-Implemented modes in one CLI:
-
-- `stage1` - discipline + points filtering from XLSX, exports one or more DOCX files
-- `stage2` - reads Stage 1 DOCX files, enriches metadata/web profiles, scores fit, exports DOCX report
-- `pipeline` - executes Stage 1 -> Stage 2 in one command
-
-Entrypoint: `main_journal_finder.py`
-
-## Repository Structure
+## Project structure
 
 ```text
 ai-editorial-suite/
 ├── main_editorial.py
-├── main_journal_finder.py
 ├── requirements.txt
 ├── src/
-│   ├── ingestion/
-│   │   └── docx_parser.py
 │   ├── editorial_pipeline/
-│   │   ├── config/
-│   │   │   └── journal_config.json
-│   │   ├── rag/
-│   │   │   └── reviewer_store.py
+│   │   ├── config/journal_config.json
+│   │   ├── rag/reviewer_store.py
 │   │   ├── steps/
-│   │   │   ├── ingestion.py
-│   │   │   ├── pre_desk_review.py
-│   │   │   ├── reviewer_recommendation.py
-│   │   │   ├── language_correction.py
-│   │   │   └── persist.py
 │   │   ├── models.py
 │   │   └── pipeline.py
-│   └── journal_finder/
-│       ├── stage1_filter.py
-│       ├── stage2.py
-│       ├── stage2_requirements.txt
-│       ├── journal_finder_stage2_metadata_template.csv
-│       ├── finder.py
-│       └── models.py
-├── data/
-├── samples/
-├── outputs/
+│   └── ingestion/docx_parser.py
+├── data/reviewers_profiles.csv
+├── scripts/build_reviewer_profiles.py
 └── tests/
 ```
 
 ## Installation
 
-Use Python 3.11+.
+A Python 3.11+ environment is recommended; newer interpreter versions have not been comprehensively tested.
 
 ```bash
-pip install -r requirements.txt
-pip install -r src/journal_finder/stage2_requirements.txt
-```
-
-Notes:
-
-- `requirements.txt` covers core editorial pipeline stack.
-- `stage2_requirements.txt` adds Stage 2 dependencies (`requests`, `beautifulsoup4`, `scikit-learn`, `python-docx`).
-
-## Configuration
-
-Set API key for editorial LLM steps:
-
-```bash
+python -m venv .venv
 # Windows PowerShell
-$env:OPENAI_API_KEY = "your_key_here"
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 ```
 
-Editorial config file:
+Set your OpenAI API key in the environment (do not commit API keys or unpublished manuscripts):
 
-- `src/editorial_pipeline/config/journal_config.json`
+```powershell
+$env:OPENAI_API_KEY = "your-api-key"
+```
 
-## Usage
+Configuration: `src/editorial_pipeline/config/journal_config.json`. The included settings are illustrative, not journal-specific production rules.
 
-### Editorial Pipeline
+## Run
+
+From the repository root:
 
 ```bash
-python main_editorial.py --path "samples/test_article_1.docx"
+python main_editorial.py --path "path/to/manuscript.docx"
 ```
 
-### Journal Finder - Stage 1
+The pipeline currently uses `gpt-4o` in its LLM steps; access and API charges may apply. Reviewer embeddings are generated locally with the configured sentence-transformers model. The first run may need to download that model. Output is written to `outputs/`.
+
+Run the existing tests with:
 
 ```bash
-python main_journal_finder.py stage1 ^
-  --file "Wykaz czasopism naukowych 2024.xlsx" ^
-  --disciplines "nauki chemiczne; inżynieria chemiczna" ^
-  --min-points 70 ^
-  --max-points 140 ^
-  --output-dir "outputs"
+python -m pytest -q
 ```
 
-### Journal Finder - Stage 2
+**Testing note:** Some current tests are placeholders or depend on an API key. A passing test suite is not yet evidence of production readiness.
 
-```bash
-python main_journal_finder.py stage2 ^
-  --stage1-docx "outputs/JournalFinder_stage1_results.docx" ^
-  --article-title "Example manuscript title" ^
-  --abstract-file "samples/abstract.txt" ^
-  --keywords "electrochemistry; catalysis; membrane" ^
-  --metadata-csv "src/journal_finder/journal_finder_stage2_metadata_template.csv" ^
-  --output-dir "outputs"
-```
+## Known limitations
 
-### Journal Finder - Full Pipeline
+- The DOCX parser uses heuristics and may not faithfully recover complex article layouts, tables, references or figures.
+- Pre-desk assessment relies on an LLM and can be inaccurate. It is not a substitute for expert editorial judgment.
+- Reviewer matching is based on a limited local profile dataset; matches are not validated reviewer invitations.
+- Language correction outputs plain text; it does not preserve the original DOCX formatting.
+- Robust integration tests, reliable exception handling, data-validation policies and continuous integration are still needed.
+- Unpublished manuscript content is sent to an external model API in LLM steps. Journal confidentiality rules and data-processing requirements must be addressed before using real submissions.
 
-```bash
-python main_journal_finder.py pipeline ^
-  --file "Wykaz czasopism naukowych 2024.xlsx" ^
-  --disciplines "nauki chemiczne; inżynieria chemiczna" ^
-  --min-points 70 ^
-  --max-points 140 ^
-  --article-title "Example manuscript title" ^
-  --abstract-file "samples/abstract.txt" ^
-  --keywords "electrochemistry; catalysis; membrane" ^
-  --metadata-csv "src/journal_finder/journal_finder_stage2_metadata_template.csv" ^
-  --stage1-output-dir "outputs" ^
-  --stage2-output-dir "outputs"
-```
+## Next priorities
 
-To allow Stage 2 web enrichment, add:
-
-- `--enable-web`
-- optional: `--use-openalex-discovery`
-
-## Current Limitations
-
-- `src/journal_finder/finder.py` remains a legacy placeholder and is not the main path.
-- Test coverage is still partial; some tests are placeholders.
-- Reliability and observability are basic (no full retry/metrics framework yet).
-
-## Roadmap (Next Priorities)
-
-1. Increase automated test coverage for Stage 1/Stage 2 and pipeline integration.
-2. Consolidate dependency management (single source of truth for requirements).
-3. Harden LLM/network reliability (timeouts, retries, structured error taxonomy).
-4. Improve data contracts and validation between steps.
-5. Add CI checks (tests, linting, type checks).
+1. Replace placeholder tests with meaningful ingestion and end-to-end tests.
+2. Evaluate the DOCX parser and the quality of LLM assessments on controlled examples.
+3. Improve reviewer-data quality and implement conflict-of-interest checks.
+4. Add reproducible configuration, logging, validation and CI.
+5. Design a human-in-the-loop editorial interface.
 
 ## License
 
-No license file is currently included in this repository.
+MIT — see [LICENSE](LICENSE).
+
+## Related project
+
+[Polish Journal Finder](https://github.com/matborkowski/polish-journal-finder) — an independent tool for searching and comparing journals in Polish ministry lists.
