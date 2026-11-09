@@ -4,8 +4,6 @@
 
 **Status:** Prototype / under development. The software is not production-ready, and its AI outputs require independent editorial verification.
 
-> **Looking for the Polish ministry journal search tool?** It is now developed independently in [Polish Journal Finder](https://github.com/matborkowski/polish-journal-finder). The legacy Journal Finder implementation has been removed from this repository.
-
 ## Current workflow
 
 The command-line entry point is `main_editorial.py`.
@@ -96,7 +94,3 @@ python -m pytest -q
 ## License
 
 MIT — see [LICENSE](LICENSE).
-
-## Related project
-
-[Polish Journal Finder](https://github.com/matborkowski/polish-journal-finder) — an independent tool for searching and comparing journals in Polish ministry lists.
